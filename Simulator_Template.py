@@ -305,8 +305,8 @@ class Location():
         nc_weights = {}
         for name in [x.name for x in self.non_combats if x.check(self, player_state)]:
             if not name in nc_weights.keys():
-            copies = 1 #+ (player_state.get_extra_copies(encounter) if name not in nc_weights.keys() else 0) #I have not sorted this yet.
-            nc_weights[name] = copies if (name in self.combat_history and not player_state.get_olfacted_mob() == name) else (4 * copies)
+                copies = 1 #+ (player_state.get_extra_copies(encounter) if name not in nc_weights.keys() else 0) #I have not sorted this yet.
+                nc_weights[name] = copies if (name in self.combat_history and not player_state.get_olfacted_mob() == name) else (4 * copies)
         return nc_weights
 
     def nc_queue(self, nc):
