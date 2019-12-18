@@ -17,7 +17,7 @@ class Simulator():
             palindome.resolve_turn(player_state, palindome)
         return player_state, palindome
 
-    def run_simulator(self, iterations = 1):
+    def run_simulator(self, iterations = 1000):
         turns = []
         banishes = []
 
@@ -33,7 +33,7 @@ class Simulator():
 class PlayerState():
 
     def __init__(self):
-        self.player_nc = 25 # Change your current +non-combat% modifier here.
+        self.player_nc = 0 # Change your current +non-combat% modifier here.
         self.player_item = 200 # Change your current +item% modifier here.
         self.total_turns_spent = 0
         self.wishes = 3
@@ -335,8 +335,8 @@ class Location():
         if self.native_nc == 0:
             return None
         actual_nc = self.native_nc + player_state.player_nc
-        avail_ncs = [x for x in self.non_combats if x.check(self, player_state)]
-        if (len(avail_ncs)) and (random.randrange(100)):
+        avail_ncs = [x for x in self.non_combats if x.check(self, player_state)] #add in NC queue
+        if (len(avail_ncs)) and (random.randrange(100) < actual_nc):
             encounter = None
             while encounter is None:
                 encounter = self.nc_queue(random.choice(avail_ncs))
@@ -367,7 +367,7 @@ class Location():
             loops += 1
         if encounter is not None:
             encounter.run(self, player_state)
-            print("{}: {} at {} dudes and {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), location.get_dudes_fought(), location.get_progress()))
+            #print("{}: {} at {} dudes and {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), location.get_dudes_fought(), location.get_progress()))
 
 
 class Palindome(Location):
@@ -380,13 +380,14 @@ class Palindome(Location):
             return location.get_pity_timer() > 5
 
         def run(self, location, player_state):
-            location.reset_pity_timer()
+            location.reset_pity_timer() #Make sure it doesn't run when there are no NCs (later)
             ncs = location.get_non_combats()
             for nc in ncs:
                 if not nc.check(location, player_state):
                     ncs.remove(nc)
-            chosen_nc = random.choice(ncs)
-            chosen_nc.run(location, player_state)
+            if len(ncs):
+                chosen_nc = random.choice(ncs)
+                chosen_nc.run(location, player_state)
 
 
     class RedNugget(Encounter): #This class is a version that uses pity timers and progress counters
@@ -524,10 +525,10 @@ class Palindome(Location):
                 Palindome.God("God")
             ],
             [   #"Combat Name", "Phylum", should_banish, should_sniff
-                Palindome.Combat("Evil Olive", "Beast", True, False),
-                Palindome.Combat("Stab Bat", "Beast", True, False),
-                Palindome.Combat("Taco Cat", "Beast", True, False),
-                Palindome.Combat("Tan Gnat", "Beast", True, False),
+                Palindome.Combat("Evil Olive", "Beast", False, False),
+                Palindome.Combat("Stab Bat", "Beast", False, False),
+                Palindome.Combat("Taco Cat", "Beast", False, False),
+                Palindome.Combat("Tan Gnat", "Beast", False, False),
                 Palindome.DrabBard("Drab Bard", "Dude", False, False),
                 Palindome.Bobs("Racecar Bob", "Dude", False, False),
                 Palindome.Bobs("Bob Racecar", "Dude", False, False)
