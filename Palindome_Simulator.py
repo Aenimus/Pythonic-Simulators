@@ -13,11 +13,11 @@ class Simulator():
 
     def do_quest(self, player_state):
         palindome = Palindome()
-        while palindome.progress < 1:
-            palindome.resolve_turn(player_state)
+        while palindome.progress < 4:
+            palindome.resolve_turn(player_state, palindome)
         return player_state, palindome
 
-    def run_simulator(self, iterations = 1000):
+    def run_simulator(self, iterations = 1):
         turns = []
         banishes = []
 
@@ -57,7 +57,10 @@ class PlayerState():
         self.inventory = {
                             "ketchup hound": 0,
                             "another item": 0,
-                            "I Love Me, Vol. I": 0
+                            "I Love Me, Vol. I": 0,
+                            "photograph of a red nugget": 0,
+                            "photograph of an ostrich egg": 0,
+                            "photograph of God": 0
                             }
 
     def nc_mod(self):
@@ -272,6 +275,9 @@ class Location():
         self.banishes_used = 0
         self.turns_spent = 0
 
+    def get_non_combats(self):
+        return self.non_combats
+
     def get_free_turn(self):
         return self.free_turn
 
@@ -330,7 +336,7 @@ class Location():
             return None
         actual_nc = self.native_nc + player_state.player_nc
         avail_ncs = [x for x in self.non_combats if x.check(self, player_state)]
-        if (len(avail_ncs)) and ((random.randrange(100) < actual_nc) or (self.pity_timer == 10)):
+        if (len(avail_ncs)) and (random.randrange(100)):
             encounter = None
             while encounter is None:
                 encounter = self.nc_queue(random.choice(avail_ncs))
@@ -353,7 +359,7 @@ class Location():
     def toggle_free_turn(self):
         self.free_turn = not self.free_turn
 
-    def resolve_turn(self, player_state):
+    def resolve_turn(self, player_state, location):
         encounter = None
         loops = 0
         while (encounter is None) and (loops < 100):
@@ -361,17 +367,71 @@ class Location():
             loops += 1
         if encounter is not None:
             encounter.run(self, player_state)
+            print("{}: {} at {} dudes and {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), location.get_dudes_fought(), location.get_progress()))
 
 
 class Palindome(Location):
 
-    class QuestNCs(Encounter): #This class is a version that uses pity timers and progress counters
+    class QuestSuperlikely(Encounter):
         def __init__(self, name = ""):
             self.name = name
 
+        def check(self, location, player_state):
+            return location.get_pity_timer() > 5
+
         def run(self, location, player_state):
+            location.reset_pity_timer()
+            ncs = location.get_non_combats()
+            for nc in ncs:
+                if not nc.check(location, player_state):
+                    ncs.remove(nc)
+            chosen_nc = random.choice(ncs)
+            chosen_nc.run(location, player_state)
+
+
+    class RedNugget(Encounter): #This class is a version that uses pity timers and progress counters
+        def __init__(self, name = ""):
+            self.name = name
+
+        def check(self, location, player_state):
+            return player_state.get_inventory_item("photograph of a red nugget") < 1
+
+        def run(self, location, player_state):
+            player_state.incr_inventory_item("photograph of a red nugget")
             location.incr_turns_spent()
-            #location.incr_progress()
+            location.incr_progress()
+            location.reset_pity_timer()
+            player_state.incr_total_turns_spent()
+            self.add_nc_queue(location)
+
+
+    class OstrichEgg(Encounter): #This class is a version that uses pity timers and progress counters
+        def __init__(self, name = ""):
+            self.name = name
+
+        def check(self, location, player_state):
+            return player_state.get_inventory_item("photograph of an ostrich egg") < 1
+
+        def run(self, location, player_state):
+            player_state.incr_inventory_item("photograph of an ostrich egg")
+            location.incr_turns_spent()
+            location.incr_progress()
+            location.reset_pity_timer()
+            player_state.incr_total_turns_spent()
+            self.add_nc_queue(location)
+
+
+    class God(Encounter): #This class is a version that uses pity timers and progress counters
+        def __init__(self, name = ""):
+            self.name = name
+
+        def check(self, location, player_state):
+            return player_state.get_inventory_item("photograph of God") < 1
+
+        def run(self, location, player_state):
+            player_state.incr_inventory_item("photograph of God")
+            location.incr_turns_spent()
+            location.incr_progress()
             location.reset_pity_timer()
             player_state.incr_total_turns_spent()
             self.add_nc_queue(location)
@@ -380,7 +440,7 @@ class Palindome(Location):
     class Combat(Encounter):
         def run(self, location, player_state):
             self.add_com_queue(location)
-            #location.incr_pity_timer()
+            location.incr_pity_timer()
             if self.should_banish:
                 player_state.check_banish(location, self)
             if self.should_copy:
@@ -401,13 +461,12 @@ class Palindome(Location):
 
         def run(self, location, player_state):
             self.add_com_queue(location)
-            #location.incr_pity_timer()
+            location.incr_pity_timer()
             if self.should_banish:
                 player_state.check_banish(location, self)
             if self.should_copy:
                 player_state.check_copier(location, self)
             if location.get_free_turn(): #This will need to be changed for free kills
-                location.incr_pity_timer()
                 location.toggle_free_turn()
                 return True
             location.incr_dudes_fought()
@@ -437,13 +496,12 @@ class Palindome(Location):
 
         def run(self, location, player_state):
             self.add_com_queue(location)
-            #location.incr_pity_timer()
+            location.incr_pity_timer()
             if self.should_banish:
                 player_state.check_banish(location, self)
             if self.should_copy:
                 player_state.check_copier(location, self)
             if location.get_free_turn(): #This will need to be changed for free kills
-                location.incr_pity_timer()
                 location.toggle_free_turn()
                 return True
             location.incr_dudes_fought()
@@ -457,14 +515,19 @@ class Palindome(Location):
         Location.__init__(
             self,
             25, #Native Non-Combat rate of location
-            [],
-            [   #ExampleLocation.ExampleNC("Example NC") #NCs go here
+            [   #Superlikelies go here
+                Palindome.QuestSuperlikely("Quest Superlikely")
             ],
-            [ #"Combat Name", "Phylum", should_banish, should_sniff
-                Palindome.Combat("Evil Olive", "Beast", False, False),
-                Palindome.Combat("Stab Bat", "Beast", False, False),
-                Palindome.Combat("Taco Cat", "Beast", False, False),
-                Palindome.Combat("Tan Gnat", "Beast", False, False),
+            [   #NCs go here
+                Palindome.RedNugget("Red Nugget"),
+                Palindome.OstrichEgg("Ostrich Egg"),
+                Palindome.God("God")
+            ],
+            [   #"Combat Name", "Phylum", should_banish, should_sniff
+                Palindome.Combat("Evil Olive", "Beast", True, False),
+                Palindome.Combat("Stab Bat", "Beast", True, False),
+                Palindome.Combat("Taco Cat", "Beast", True, False),
+                Palindome.Combat("Tan Gnat", "Beast", True, False),
                 Palindome.DrabBard("Drab Bard", "Dude", False, False),
                 Palindome.Bobs("Racecar Bob", "Dude", False, False),
                 Palindome.Bobs("Bob Racecar", "Dude", False, False)
@@ -476,6 +539,9 @@ class Palindome(Location):
 
     def get_progress(self):
         return self.progress
+
+    def get_pity_timer(self):
+        return self.pity_timer
 
     def incr_progress(self):
         self.progress += 1
