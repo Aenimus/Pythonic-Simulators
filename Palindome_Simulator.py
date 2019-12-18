@@ -20,20 +20,22 @@ class Simulator():
     def run_simulator(self, iterations = 1000):
         turns = []
         banishes = []
+        superlikelies = []
 
         for a in range(iterations):
             player_state, palindome = self.do_quest(PlayerState())
             turns.append(player_state.get_total_turns_spent())
             banishes.append(palindome.get_banishes_used())
+            superlikelies.append(palindome.get_superlikelies())
 
-        Utils.log("In {} instances at {}% +NC, an average of {} banishes and tracking {}, it took an average of {} turns to complete the quest, with a median of {} and a deviation of {}."
-        .format(iterations, PlayerState().player_nc, statistics.mean(banishes), player_state.tracked_phylum if player_state.tracked_phylum != "" else "nothing", statistics.mean(turns), statistics.median(turns), statistics.pstdev(turns)))
+        Utils.log("In {} instances at {}% +NC, an average of {} superlikelies, an average of {} banishes and tracking {}, it took an average of {} turns to complete the quest, with a median of {} and a deviation of {}."
+        .format(iterations, PlayerState().player_nc, statistics.mean(superlikelies), statistics.mean(banishes), player_state.tracked_phylum if player_state.tracked_phylum != "" else "nothing", statistics.mean(turns), statistics.median(turns), statistics.pstdev(turns)))
 
 
 class PlayerState():
 
     def __init__(self):
-        self.player_nc = 0 # Change your current +non-combat% modifier here.
+        self.player_nc = 25 # Change your current +non-combat% modifier here.
         self.player_item = 200 # Change your current +item% modifier here.
         self.total_turns_spent = 0
         self.wishes = 3
@@ -47,10 +49,10 @@ class PlayerState():
                         ]
         self.copiers = [ #"Copy Name", duration, max_available_uses, has_cooldown, number_of_copies, ignores_rejection
                             Copier("Olfaction", 40, 999, True, 3, False),
-                            Copier("Share Latte", 30, 3, True, 2),
-                            Copier("Mating Call", 999, 1, False, 1)
+                            Copier("Share Latte", 30, 0, True, 2),
+                            Copier("Mating Call", 999, 0, False, 1)
                         ]
-        self.tracked_phylum = ""
+        self.tracked_phylum = "Dude"
         self.olfacted_mob = None
         self.latted_mob = None
         self.mated_mob = None
@@ -386,6 +388,7 @@ class Palindome(Location):
                 if not nc.check(location, player_state):
                     ncs.remove(nc)
             if len(ncs):
+                location.incr_superlikelies()
                 chosen_nc = random.choice(ncs)
                 chosen_nc.run(location, player_state)
 
@@ -530,13 +533,14 @@ class Palindome(Location):
                 Palindome.Combat("Taco Cat", "Beast", False, False),
                 Palindome.Combat("Tan Gnat", "Beast", False, False),
                 Palindome.DrabBard("Drab Bard", "Dude", False, False),
-                Palindome.Bobs("Racecar Bob", "Dude", False, False),
-                Palindome.Bobs("Bob Racecar", "Dude", False, False)
+                Palindome.Bobs("Racecar Bob", "Dude", False, True),
+                Palindome.Bobs("Bob Racecar", "Dude", False, True)
             ]
         )
         self.progress = 0
         self.dudes_fought = 0
         self.pity_timer = 0
+        self.superlikelies_encountered = 0
 
     def get_progress(self):
         return self.progress
@@ -558,6 +562,12 @@ class Palindome(Location):
 
     def incr_dudes_fought(self):
         self.dudes_fought += 1
+
+    def get_superlikelies(self):
+        return self.superlikelies_encountered
+
+    def incr_superlikelies(self):
+        self.superlikelies_encountered += 1
 
 if __name__ == "__main__":
     Simulator().run_simulator()
