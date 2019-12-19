@@ -478,9 +478,6 @@ class Palindome(Location):
         def check_conditional_drops(self, location, player_state):
             photo = "photograph of a dog"
             quest_book = "I Love Me, Vol. I"
-            if (location.get_dudes_fought() > 7) and (not player_state.get_inventory_item(photo)):
-                player_state.incr_inventory_item(photo)
-                location.incr_progress()
             if (location.get_dudes_fought() == 5) and (player_state.get_inventory_item(quest_book) < 1):
                 player_state.incr_inventory_item(quest_book)
                 location.incr_progress()
