@@ -345,7 +345,7 @@ class Location():
         actual_nc = self.native_nc + player_state.get_player_nc()
         if actual_nc == 0:
             return None
-        if random.randrange(100) < actual_nc:
+        if random.randrange(100) > actual_nc:
             return None
         encounter_name = self.weighted_random(self.get_nc_weights(player_state))
         if encounter_name:
