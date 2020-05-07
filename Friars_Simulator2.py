@@ -12,10 +12,16 @@ class Utils():
 class Simulator():
 
     def do_quest(self, player_state):
-        palindome = Palindome()
-        while palindome.progress < 5: #1 progress for each NC/superlikely, 1 for encountering 5 Dudes and 1 progress for either 8 dudes total or 1 Bob.
-            palindome.resolve_turn(player_state, palindome)
-        return player_state, palindome
+        heart = FriarLoc()
+        neck = FriarLoc()
+        elbow = FriarLoc()
+        while heart.progress < 4: #1 progress for each NC/superlikely, 1 for encountering 5 Dudes and 1 progress for either 8 dudes total or 1 Bob.
+            heart.resolve_turn(player_state)
+        while neck.progress < 4: #1 progress for each NC/superlikely, 1 for encountering 5 Dudes and 1 progress for either 8 dudes total or 1 Bob.
+            neck.resolve_turn(player_state)
+        while elbow.progress < 4: #1 progress for each NC/superlikely, 1 for encountering 5 Dudes and 1 progress for either 8 dudes total or 1 Bob.
+            elbow.resolve_turn(player_state)
+        return player_state, heart, neck, elbow
 
     def run_simulator(self, iterations = 1000):
         turns = []
@@ -23,13 +29,16 @@ class Simulator():
         superlikelies = []
 
         for a in range(iterations):
-            player_state, palindome = self.do_quest(PlayerState())
+            player_state, heart, neck, elbow = self.do_quest(PlayerState())
             turns.append(player_state.get_total_turns_spent())
-            banishes.append(palindome.get_banishes_used())
-            superlikelies.append(palindome.get_superlikelies_encountered())
+            pity1 = heart.get_superlikelies_encountered()
+            pity2 = heart.get_superlikelies_encountered()
+            pity3 = neck.get_superlikelies_encountered()
+            total_pity = pity1 + pity2 + pity3
+            superlikelies.append(total_pity)
 
-        Utils.log("In {} instances at {}% +NC, an average of {} superlikelies, an average of {} banishes and tracking {}, it took an average of {} turns to complete the quest, with a median of {} and a deviation of {}."
-        .format(iterations, PlayerState().player_nc, statistics.mean(superlikelies), statistics.mean(banishes), player_state.tracked_phylum + "s" if player_state.tracked_phylum != "" else "nothing", statistics.mean(turns), statistics.median(turns), statistics.pstdev(turns)))
+        Utils.log("In {} instances at {}% +NC, an average of {} pity NCs with {} turn between, it took an average of {} turns to complete the quest, with a median of {} and a deviation of {}."
+        .format(iterations, PlayerState().player_nc, statistics.mean(superlikelies), heart.get_pity_cooldown(), statistics.mean(turns), statistics.median(turns), statistics.pstdev(turns)))
 
 
 class PlayerState():
@@ -274,14 +283,16 @@ class Encounter():
 
 class Location():
 
-    def __init__(self, native_nc, superlikelies, non_combats, combats, banishes_to_commit=0):
+    def __init__(self, native_nc, superlikelies, non_combats, combats, delay=0, banishes_to_commit=0, pity_cooldown=0):
         self.native_nc = native_nc
         self.superlikelies = superlikelies
         self.non_combats = non_combats
         self.combats = combats
         self.nc_history = collections.deque([], 5)
         self.combat_history = collections.deque([], 5)
+        self.delay = delay
         self.banishes_to_commit = banishes_to_commit
+        self.pity_cooldown = pity_cooldown
         self.banishes_used = 0
         self.free_turn = False
         self.turns_spent = 0
@@ -292,11 +303,20 @@ class Location():
     def get_free_turn(self):
         return self.free_turn
 
+    def get_delay(self):
+        return self.delay
+
     def get_banishes_used(self):
         return self.banishes_used
 
     def incr_banishes_used(self):
         self.banishes_used += 1
+
+    def get_pity_cooldown(self):
+        return self.pity_cooldown
+
+    def get_turns_spent(self):
+        return self.turns_spent
 
     def incr_turns_spent(self):
         self.turns_spent += 1
@@ -368,7 +388,7 @@ class Location():
     def toggle_free_turn(self):
         self.free_turn = not self.free_turn
 
-    def resolve_turn(self, player_state, location):
+    def resolve_turn(self, player_state):
         encounter = None
         loops = 0
         while (encounter is None) and (loops < 100):
@@ -377,84 +397,41 @@ class Location():
         if encounter is not None:
             encounter.run(self, player_state)
             #Verbose information underneath
-            #print("{}: {} at {} dudes and {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), location.get_dudes_fought(), location.get_progress()))
+            #print("{}: {} at {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), self.get_progress()))
 
 
-class Palindome(Location):
+class FriarLoc(Location):
 
-    class QuestSuperlikely(Encounter):
-
-        def __init__(self, name = ""):
-            self.name = name
-
-        def check(self, location, player_state):
-            return location.get_pity_timer() > 5 and (location.get_quest_items() < 3)
-
-        def run(self, location, player_state):
-            location.reset_pity_timer()
-            ncs = location.get_non_combats()
-            available_ncs = []
-            for nc in ncs:
-                if nc.check(location, player_state):
-                    available_ncs.append(nc)
-            if len(available_ncs):
-                location.incr_superlikelies()
-                chosen_nc = random.choice(available_ncs)
-                chosen_nc.run(location, player_state)
-
-
-    class RedNugget(Encounter):
+    class PityNC(Encounter):
 
         def __init__(self, name = ""):
             self.name = name
 
         def check(self, location, player_state):
-            return not player_state.get_inventory_item("photograph of a red nugget")
+            #return location.get_turns_spent() == 10 or (location.get_pity_timer() > (location.get_pity_cooldown() - random.randint(1,2)))
+            #return location.get_turns_spent() == 12 or (location.get_pity_timer() > (location.get_pity_cooldown() - 1))
+            #return (location.get_pity_timer() > (location.get_pity_cooldown() - 1)) or ((location.get_turns_spent() - 5) % location.get_pity_cooldown() == 1)
+            return (location.get_turns_spent() - location.get_delay()) % location.get_pity_cooldown() == 1
 
         def run(self, location, player_state):
-            player_state.incr_inventory_item("photograph of a red nugget")
+            location.incr_superlikelies()
+            nc = location.get_non_combats()
+            nc[0].run(location, player_state)
+
+
+    class ProgressNC(Encounter):
+
+        def __init__(self, name = ""):
+            self.name = name
+
+        def check(self, location, player_state):
+            return location.get_turns_spent() > location.get_delay()
+
+        def run(self, location, player_state):
             location.incr_turns_spent()
             location.incr_progress()
             location.reset_pity_timer()
-            location.incr_quest_items()
             player_state.incr_total_turns_spent()
-            self.add_nc_queue(location)
-
-
-    class OstrichEgg(Encounter):
-
-        def __init__(self, name = ""):
-            self.name = name
-
-        def check(self, location, player_state):
-            return not player_state.get_inventory_item("photograph of an ostrich egg")
-
-        def run(self, location, player_state):
-            player_state.incr_inventory_item("photograph of an ostrich egg")
-            location.incr_turns_spent()
-            location.incr_progress()
-            location.reset_pity_timer()
-            location.incr_quest_items()
-            player_state.incr_total_turns_spent()
-            self.add_nc_queue(location)
-
-
-    class God(Encounter):
-
-        def __init__(self, name = ""):
-            self.name = name
-
-        def check(self, location, player_state):
-            return not player_state.get_inventory_item("photograph of God")
-
-        def run(self, location, player_state):
-            player_state.incr_inventory_item("photograph of God")
-            location.incr_turns_spent()
-            location.incr_progress()
-            location.reset_pity_timer()
-            location.incr_quest_items()
-            player_state.incr_total_turns_spent()
-            self.add_nc_queue(location)
 
 
     class Combat(Encounter):
@@ -473,101 +450,27 @@ class Palindome(Location):
             player_state.incr_total_turns_spent()
 
 
-    class DrabBard(Encounter):
-
-        def check_conditional_drops(self, location, player_state):
-            photo = "photograph of a dog"
-            quest_book = "I Love Me, Vol. I"
-            if (location.get_dudes_fought() == 5) and (player_state.get_inventory_item(quest_book) < 1):
-                player_state.incr_inventory_item(quest_book)
-                location.incr_progress()
-
-        def run(self, location, player_state):
-            self.add_com_queue(location)
-            location.incr_pity_timer()
-            if self.should_banish:
-                player_state.check_banish(location, self)
-            if self.should_copy:
-                player_state.check_copier(location, self)
-            if location.get_free_turn(): #This will need to be changed for free kills
-                location.toggle_free_turn()
-                return True
-            location.incr_dudes_fought()
-            self.check_conditional_drops(location, player_state)
-            location.incr_turns_spent()
-            player_state.incr_total_turns_spent()
-
-
-    class Bobs(Encounter):
-
-        def __init__(self, name = "", phylum = None, banish = False, copy = False):
-            super().__init__(name, phylum, banish, copy)
-            self.item_drops = {
-                                "ketchup hound": 35,
-                                "another item": 15
-                                }
-
-        def check_drops(self, location, player_state):
-            for item in self.item_drops:
-                if random.randrange(100) < (math.floor(self.item_drops.get(item)*player_state.item_mod())):
-                    player_state.incr_inventory_item(item)
-
-        def check_conditional_drops(self, location, player_state):
-            photo = "photograph of a dog"
-            camera = "disposable instant camera"
-            quest_book = "I Love Me, Vol. I"
-            if (player_state.get_inventory_item(camera) or (location.get_dudes_fought() > 7)) and (not player_state.get_inventory_item(photo)):
-                player_state.decr_inventory_item(camera)
-                player_state.incr_inventory_item(photo)
-                location.incr_progress()
-            if (location.get_dudes_fought() == 5) and (not player_state.get_inventory_item(quest_book)):
-                player_state.incr_inventory_item(quest_book)
-                location.incr_progress()
-
-        def run(self, location, player_state):
-            self.add_com_queue(location)
-            location.incr_pity_timer()
-            if self.should_banish:
-                player_state.check_banish(location, self)
-            if self.should_copy:
-                player_state.check_copier(location, self)
-            if location.get_free_turn(): #This will need to be changed for free kills
-                location.toggle_free_turn()
-                return True
-            location.incr_dudes_fought()
-            self.check_drops(location, player_state)
-            self.check_conditional_drops(location, player_state)
-            location.incr_turns_spent()
-            player_state.incr_total_turns_spent()
-
-
     def __init__(self):
         Location.__init__(
             self,
-            15, #Native Non-Combat rate of location
+            5, #Native Non-Combat rate of location
             [   #Superlikelies go here
-                Palindome.QuestSuperlikely("Quest Superlikely")
+                FriarLoc.PityNC("Pity NC")
             ],
             [   #NCs go here
-                Palindome.RedNugget("Red Nugget"),
-                Palindome.OstrichEgg("Ostrich Egg"),
-                Palindome.God("God")
+                FriarLoc.ProgressNC("Progress NC")
             ],
             [   #"Combat Name", "Phylum", should_banish, should_sniff
-                Palindome.Combat("Evil Olive", "Beast", True, False),
-                Palindome.Combat("Stab Bat", "Beast", True, False),
-                Palindome.Combat("Taco Cat", "Beast", True, False),
-                Palindome.Combat("Tan Gnat", "Beast", True, False),
-                Palindome.DrabBard("Drab Bard", "Dude", False, True),
-                Palindome.Bobs("Racecar Bob", "Dude", False, True),
-                Palindome.Bobs("Bob Racecar", "Dude", False, True)
+                FriarLoc.Combat("Imp 1", "Demon", False, False),
+                FriarLoc.Combat("Imp 2", "Demon", False, False),
+                FriarLoc.Combat("Imp 3", "Demon", False, False)
             ],
-            2 #Number of banishes to commit to the location
+            5, #Turns of delay
+            0, #Number of banishes to commit to the location
+            4 #Turns between each pity
         )
         self.progress = 0
         self.pity_timer = 0
-        self.quest_items = 0
-        self.dudes_fought = 0
         self.superlikelies_encountered = 0
 
     def get_banishes_left(self):
@@ -587,18 +490,6 @@ class Palindome(Location):
 
     def reset_pity_timer(self):
         self.pity_timer = 0
-
-    def get_quest_items(self):
-        return self.quest_items
-
-    def incr_quest_items(self):
-        self.quest_items += 1
-
-    def get_dudes_fought(self):
-        return self.dudes_fought
-
-    def incr_dudes_fought(self):
-        self.dudes_fought += 1
 
     def get_superlikelies_encountered(self):
         return self.superlikelies_encountered
