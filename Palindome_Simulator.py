@@ -377,7 +377,7 @@ class Location():
         if encounter is not None:
             encounter.run(self, player_state)
             #Verbose information underneath
-            #print("{}: {} at {} dudes and {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), location.get_dudes_fought(), location.get_progress()))
+            print("{}: {} at {} dudes and {} progress.".format(player_state.get_total_turns_spent(), encounter.get_name(), location.get_dudes_fought(), location.get_progress()))
 
 
 class Palindome(Location):
