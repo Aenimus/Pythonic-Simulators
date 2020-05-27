@@ -1,13 +1,24 @@
-import random
-import math
-import statistics
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Type
+from typing import DefaultDict, Dict, List, Optional
 
-from Banisher import Banisher
-from Copier import Copier
+@dataclass
+class MyParent:
+    def hw(self):
+        print("hello world")
 
-from Park import Park
+    def __post_init__(self):
+        self.v2 = 69
 
-a = "cats"
+@dataclass
+class MyClass(MyParent):
+    v: int = 1
+    v2: int = 68
+    v3: int = 3
 
-print(a.endswith("s"))
-print(a[-1])
+    def __post_init__(self):
+        self.v2 = 68
+
+classy = MyClass()
+print(classy.v2)
