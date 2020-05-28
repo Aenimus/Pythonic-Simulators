@@ -1,77 +1,50 @@
 import random
 
+import utils
+from Items import Items, DUMPSTER_ITEMS
 from Location import Location
-from Encounter import Encounter
-from Encounter import Turn
-from Encounter import BaseCombat
-from Encounter import Combat
+from Encounter import Phylum, Superlikely, NonCombat, Combat
 
-banishers = 0 # The number of banishers you wish to commit to the location
-macros = 0 # The number of macros you wish to commit to the location
+boaraffe = Combat(name="Boaraffe", phylum=Phylum.BEAST)
 
-class Park(Location):
+squad = Combat(name="Pygmy Assault Squad", phylum=Phylum.DUDE)
 
-    class Dakota(Turn):
+blowgunner = Combat(name="Pgymy Blowgunner", phylum=Phylum.DUDE)
 
-        def check(self, location, player_state):
-            return (location.get_delay() - location.get_turns_spent()) < 1
+# Pygmy Janitor
+def janitor_check(encounter, player_state, location, **kwargs):
+    return player_state.janitors_moved
 
-        def run(self, location, player_state):
-            super().run(location, player_state)
-            player_state.incr_inventory_item("antique machete")
-            location.incr_progress()
+janitor = Combat(name="Pygmy Janitor", phylum=Phylum.DUDE, validator=janitor_check, item_drops={Items.BookOfMatches: 20})
+
+# Dakota
+def dakota_check(encounter, player_state, location, **kwargs):
+    turns_spent = player_state.locations[location].turns_spent
+    return turns_spent >= encounter.delay
+
+def dakota_run(encounter, player_state, location, **kwargs):
+    player_state.inventory[Items.AntiqueMachete] += 1
+
+dakota = Superlikely(name="Dr. Henry \"Dakota\" Fanning, Ph.D., R.I.P.", delay=6, validator=dakota_check, run4=dakota_run)
+
+# Dumpster; assumes you closet bowling balls immediately
+def roll_dumpster_item():
+    return random.choice(DUMPSTER_ITEMS)
+
+def dumpster_run(encounter, player_state, location, **kwargs):
+    if not player_state.janitors_moved:
+        player_state.janitors_moved = True
+        utils.vlog(f"{player_state.total_turns_spent}: Pygmy janitors moved to the park.")
+    else:
+        item = roll_dumpster_item()
+        player_state.inventory[item] += 1
+        utils.vlog(f"Acquired 1 {Items.get_name(item)} from the dumpster.")
+        if not random.randrange(20):
+            player_state.inventory[Items.ShortWritOfHabeasCorpus] += 1
+            utils.vlog(f"Acquired 1 {Items.get_name(Items.ShortWritOfHabeasCorpus)} from the dumpster.")
+
+dumpster = NonCombat(name="Where Does The Lone Ranger Take His Garbagester?", run4=dumpster_run)
+
+park = Location(name="The Hidden Hospital", nc=15, encounters=[dakota, dumpster, boaraffe, blowgunner, janitor, squad])
 
 
-    class Dumpster(Turn): # Doesn't need queue logic
-
-        def run(self, location, player_state):
-            super().run(location, player_state)
-            if not player_state.get_janitors_moved():
-                player_state.set_janitors_moved()
-            else:
-                player_state.incr_inventory_item(location.roll_dumpster_item())
-                if random.randrange(20) == 1:
-                    player_state.incr_inventory_item("short writ of habeas corpus")
-
-
-    class Janitor(Combat):
-
-        def check(self, location, player_state):
-            return player_state.get_janitors_moved()
-
-
-    def __init__(self):
-        super().__init__(
-            "The Hidden Park",
-            15, #Native Non-Combat rate of location
-            [   #Superlikelies go here
-                Park.Dakota("Dr. Henry \"Dakota\" Fanning, Ph.D., R.I.P.")
-            ],
-            [   #NCs go here
-                Park.Dumpster("Where Does The Lone Ranger Take His Garbagester?")
-            ],
-            [   #"Combat Name", "Phylum", should_banish, should_sniff, should_macro, item_drops
-                Combat("Boaraffe", "Beast", False, False, False),
-                Combat("Pygmy Assault Squad", "Dude", False, False, False),
-                Combat("Pgymy Blowgunner", "Dude", True, False, False),
-                Park.Janitor("Pygmy Janitor", "Dude", False, False, False, {"book of matches": 20})
-            ],
-            6, # Turns of delay
-            banishers, # Number of banishers to commit to the location
-            macros # Number of macros to commit to the location
-        )
-        self.dumpster_items = [
-                                "bloodied surgical dungarees",
-                                "bowling ball",
-                                "half-size scalpel",
-                                "head mirror",
-                                "surgical apron",
-                                "surgical mask"
-        ]
-
-    def get_dumpster_items(self):
-        return self.dumpster_items
-
-    def roll_dumpster_item(self): # Assumes you closet bowling balls immediately
-        items = self.get_dumpster_items()
-        return items[random.randrange(len(items))]

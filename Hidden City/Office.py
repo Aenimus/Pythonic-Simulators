@@ -1,57 +1,37 @@
+import utils
 from Location import Location
-from Encounter import Encounter
-from Encounter import Turn
-from Encounter import BaseCombat
-from Encounter import Combat
-
-banishers = 1 # The number of banishers you wish to commit to the location
-macros = 0 # The number of macros you wish to commit to the location
-
-class Office(Location):
-
-    class Holiday(Turn):
-
-        def check(self, location, player_state):
-            return location.get_pity_timer() > 5
-
-        def run(self, location, player_state):
-            super().run(location, player_state)
-            if location.get_progress() < 1:
-                location.incr_progress()
-            elif player_state.get_accountants_fought() > 4:
-                location.incr_progress()
-            location.set_pity_timer(1)
+from Encounter import Phylum, Superlikely, Combat
+from Items import Items
 
 
-    class Accountant(Combat):
+# The Hidden Office
+def holiday_check(encounter, player_state, location, **kwargs):
+    turns_spent = player_state.locations[location].turns_spent
+    return (turns_spent % encounter.delay) == 0 and turns_spent > 0
 
-        def run(self, location, player_state):
-            super().run(location, player_state)
-            player_state.incr_accountants_fought()
+def holiday_run(encounter, player_state, location, **kwargs):
+    if player_state.inventory[Items.BoringBinderClip] < 1:
+        player_state.inventory[Items.BoringBinderClip] +=1
+        utils.vlog(f"{player_state.total_turns_spent + 1}: Gained a boring binder clip.")
+    elif player_state.accountants_fought > 4:
+        player_state.locations[location].increment_progress(player_state, location)
 
+holiday = Superlikely(name="Working Holiday", delay=5, validator=holiday_check, run4=holiday_run)
 
-    class Janitor(Combat):
+# Pygmy Accountant
+def accountant_run(encounter, player_state, location, **kwargs):
+    player_state.accountants_fought += 1
 
-        def check(self, location, player_state):
-            return not player_state.get_janitors_moved()
+accountant = Combat(name="Pygmy Accountant", phylum=Phylum.DUDE, run4=accountant_run)
 
+headhunter = Combat(name="Pygmy Headhunter", phylum=Phylum.DUDE)
 
-    def __init__(self):
-        super().__init__(
-            "The Hidden Office",
-            0, #Native Non-Combat rate of location
-            [   #Superlikelies go here
-                Office.Holiday("Working Holiday")
-            ],
-            [   #NCs go here
-            ],
-            [   #"Combat Name", "phylum", should_banish, should_sniff, should_macro, item_drops {}
-                Combat("Pygmy Headhunter", "Dude", False, False, False),
-                Office.Janitor("Pygmy Janitor", "Dude", True, False, False),
-                Office.Accountant("Pygmy Witch Accountant", "Dude", False, False, False),
-                Combat("Pgymy Witch Lawyer", "Dude", True, False, False, {"short writ of habeas corpus": 5})
-            ],
-            0, # Turns of delay
-            banishers, # Number of banishers to commit to the location
-            macros # Number of macros to commit to the location
-        )
+def janitor_check(encounter, player_state, location, **kwargs):
+   # print(f"janitors_moved is {player_state.janitors_moved}")
+    return not player_state.janitors_moved
+
+janitor = Combat(name="Pygmy Janitor", phylum=Phylum.DUDE, validator=janitor_check, item_drops={Items.BookOfMatches: 20})
+
+lawyer = Combat(name="Pygmy Witch Lawyer", phylum=Phylum.DUDE, item_drops={Items.ShortWritOfHabeasCorpus: 5})
+
+office = Location(name="The Hidden Office", encounters=[holiday, accountant, janitor, lawyer, headhunter])

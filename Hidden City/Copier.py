@@ -1,38 +1,41 @@
+from dataclasses import dataclass, field
+from typing import Optional, TYPE_CHECKING
+
+import utils
+if TYPE_CHECKING:
+    from PlayerState import PlayerState
+    from Encounter import Combat
+
+
+@dataclass
 class Copier():
+    name: str = ""
+    turn_duration: int = 30
+    max_available_uses: int = 3
+    has_cooldown: bool = False
+    copies_created: int = 1
+    has_rejection: bool = True
+    recipient: Optional["Combat"] = field(init=False, repr=True, default=None)
+    expiration_turn: int = field(init=False, repr=True, default=-1)
 
-    def __init__(self, name = "", length = 30, avail_uses = 3, cooldown = False, copies = 1, rejection = True):
-        self.name = name
-        self.length = length
-        self.avail_uses = avail_uses
-        self.cooldown = cooldown
-        self.copies = copies
-        self.rejection = rejection
-        self.copied_mob = None
-        self.expiry = -1
+    def validate(self, player_state: "PlayerState", monster: "Combat"):
+        if self.recipient == monster:
+            return False
+        no_cooldown = True
+        if self.has_cooldown:
+            no_cooldown = self.expiration_turn < player_state.total_turns_spent
+        return self.max_available_uses and no_cooldown
 
-    def get_avail_uses(self):
-        return self.avail_uses
+    def use(self, player_state: "PlayerState", monster: "Combat"):
+        self.recipient = monster
+        self.max_available_uses -= 1
+        self.expiration_turn = player_state.total_turns_spent + self.turn_duration
+        if not self.has_rejection:
+            player_state.olfacted_monster = monster # immunity from rejection is handled on player_state while only olfaction does so
+        utils.vlog(f"{player_state.total_turns_spent + 1}: Using the copier {self.name} on {utils.agreement(monster)} {monster.name}.")
 
-    def get_copies(self):
-        return self.copies
-
-    def get_copied_mob(self, player_state):
-        if self.get_expiry() < player_state.get_total_turns_spent():
-            if not self.rejection:
-                player_state.reset_olfacted_mob()
-            return None
-        return self.copied_mob
-
-    def get_expiry(self):
-        return self.expiry
-
-    def check(self, player_state):
-        return (self.get_avail_uses()) and (self.get_expiry() < player_state.get_total_turns_spent())
-
-    def use(self, location, player_state, encounter):
-        name = encounter.get_name()
-        self.copied_mob = name
-        self.avail_uses -= 1
-        self.expiry = player_state.get_total_turns_spent() + self.length
-        if not self.rejection:
-            player_state.set_olfacted_mob(name)
+    @staticmethod
+    def get_copiers():
+        return [Copier(name="Olfaction", turn_duration=40, max_available_uses=999, has_cooldown=True, copies_created=3, has_rejection=False),
+                Copier(name="Share Latte", turn_duration=30, max_available_uses=3, has_cooldown=True, copies_created=2),
+                Copier(name="Mating Call", turn_duration=999, max_available_uses=1, has_cooldown=False, copies_created=1)]
