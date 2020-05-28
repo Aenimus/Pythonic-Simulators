@@ -28,10 +28,6 @@ bowler = Combat(name="Pygmy Bowler", phylum=Phylum.DUDE, item_drops={Items.Bowli
 
 drunk = Combat(name="Drunk Pygmy", phylum=Phylum.DUDE, run1=drunk_run)
 
-orderlies = Combat(name="Pygmy Orderlies", phylum=Phylum.DUDE, group=True)
-
-witch = Combat(name="Pygmy Witch", phylum=Phylum.DUDE)
-
 alley = Location(name="The Hidden Bowling Alley", encounters=[bowls, bowler, drunk, janitor, orderlies])
 
 

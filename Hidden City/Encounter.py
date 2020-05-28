@@ -64,7 +64,7 @@ class Encounter:
     def __str__(self)-> str:
         return f"Encounter({self.name})"
 
-    def validate(self, player_state: "PlayerState", location: "Location")-> None:
+    def validate(self, player_state: "PlayerState", location: "Location")-> bool:
         return self.validator(self, player_state, location)
 
     def spend_turn(self, player_state: "PlayerState", location: "Location")-> None:
@@ -128,7 +128,6 @@ class Encounter:
 class Superlikely(Encounter):
     def run_stage1(self, player_state: "PlayerState", location: "Location") -> None:
         player_state.locations[location].superlikelies_encountered += 1
-        self.verbose_log(player_state, location)
 
 
 @dataclass(frozen=True)
@@ -152,10 +151,9 @@ class Combat(Encounter):
     macro_target: bool = False
 
     def validate(self, player_state: "PlayerState", location: "Location") -> bool:
-        if self.validator(self, player_state, location) is None:
-            return False
-
-        return all(b.recipient is not self for b in player_state.banishers)
+        if self.validator(self, player_state, location):
+            return all(b.recipient is not self for b in player_state.banishers)
+        return False
 
     def roll_drops(self, player_state: "PlayerState") -> None:
         if self.item_drops:

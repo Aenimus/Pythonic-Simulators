@@ -45,6 +45,6 @@ def dumpster_run(encounter, player_state, location, **kwargs):
 
 dumpster = NonCombat(name="Where Does The Lone Ranger Take His Garbagester?", run4=dumpster_run)
 
-park = Location(name="The Hidden Hospital", nc=15, encounters=[dakota, dumpster, boaraffe, blowgunner, squad, janitor])
+park = Location(name="The Hidden Hospital", nc=15, encounters=[dakota, dumpster, boaraffe, blowgunner, janitor, squad])
 
 

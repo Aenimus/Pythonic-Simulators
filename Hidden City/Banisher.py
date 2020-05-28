@@ -20,7 +20,7 @@ class Banisher:
     expiration_turn: int = field(init=False, repr=True, default=-1)
 
     def validate(self, player_state: "PlayerState"):
-        if self.recipient != None:
+        if self.recipient is not None: # needs more clever handling for multiple banishes in the same location and swapping location
             return False
         no_cooldown = True
         if self.has_cooldown:
@@ -36,7 +36,7 @@ class Banisher:
         if self.is_free:
             player_state.free_turn = True
         player_state.locations[location].banishers_used += 1
-        utils.vlog(f"{player_state.total_turns_spent + 1}: Using the banisher {self.name} on {utils.agreement(monster)} {monster.name}.")
+        utils.vlog(f"{player_state.total_turns_spent}: Using the banisher {self.name} on {utils.agreement(monster)} {monster.name}.")
 
     @staticmethod
     def get_banishers():
